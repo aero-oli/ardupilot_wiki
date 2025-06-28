@@ -263,6 +263,12 @@ def build_one(wiki, fast):
     )
     app.build()
 
+    # also build PDF using the wiki Makefile
+    try:
+        subprocess.check_call(['make', '-C', wiki, 'latexpdf'])
+    except subprocess.CalledProcessError:
+        error(f'Error building PDF for {wiki}')
+
 
 def sphinx_make(site, parallel, fast):
     """
@@ -317,6 +323,9 @@ def check_build(site):
         index_html = os.path.join(wiki, "build", "html", "index.html")
         if not os.path.exists(index_html):
             fatal("%s site not built - missing %s" % (wiki, index_html))
+        pdfs = glob.glob(os.path.join(wiki, "build", "latex", "*.pdf"))
+        if len(pdfs) == 0:
+            fatal("%s site PDF not built" % wiki)
 
 
 def copy_build(site, destdir):
@@ -356,6 +365,14 @@ def copy_build(site, destdir):
             debug(f"Moved to {targetdir}")
         except shutil.Error:
             error(f"FAIL moving output to {targetdir}")
+
+        # copy generated PDF files
+        pdfs = glob.glob(os.path.join(wiki, 'build', 'latex', '*.pdf'))
+        for pdf in pdfs:
+            try:
+                shutil.copy2(pdf, targetdir)
+            except IOError:
+                error(f"FAIL copying PDF {pdf} to {targetdir}")
 
         # copy jquery
         os.makedirs(os.path.join(targetdir, '_static'), exist_ok=True)
